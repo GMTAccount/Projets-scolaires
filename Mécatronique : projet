@@ -1,0 +1,111 @@
+// H bridge L293D management 
+
+uint8_t enableBridgePin = 10; 
+
+//uint8_t forwardPin = 11; 
+
+//uint8_t backWardPin = 9; 
+
+uint8_t tickPin = 2; 
+
+volatile uint8_t nbTicks; 
+
+volatile uint8_t currentNbTicks = 0; 
+
+volatile uint8_t currentTick = 0;
+
+float nbTickparTour = 11;
+
+int vitesseSouhaitee = 120;
+
+int rapportReduction = 20;
+
+float periodeEchantillon = 0.01;
+
+float rotationSpeed; 
+
+ const int derive = 2;
+
+ const int integral = 85;
+
+ const int proportionnel = 200;
+
+ float sommeIntegral = 0.0;
+
+ float erreurAncienne = 0.0;
+
+void tickCount(); 
+
+void setup() { 
+
+  pinMode(enableBridgePin, OUTPUT); 
+
+//  pinMode(forwardPin, OUTPUT); 
+
+//  pinMode(backWardPin, OUTPUT);  
+
+//  digitalWrite(forwardPin, HIGH); 
+
+//  digitalWrite(backWardPin, LOW); 
+
+  attachInterrupt(digitalPinToInterrupt(tickPin),tickCount, RISING); 
+
+  
+
+  TCCR2A = 0;       
+
+  TCCR2B = B111;    
+
+  TIMSK2 = 0x01;    
+
+   sei(); 
+
+  Serial.begin(9600); 
+
+  digitalWrite(enableBridgePin, HIGH); 
+
+} 
+
+void loop() { 
+
+      
+
+      cli(); 
+
+      //rotationSpeed = (2*3.14)/(periodeEchantillon*rapportReduction*nbTicks);
+
+      // Ancien : rotationSpeed = 60000*1.6*nbTicks/(360 * 16.4);
+        
+
+} 
+
+void Asservissement(){
+  float rotationSpeed = (2*3.14)/(periodeEchantillon*rapportReduction*nbTicks);
+  int variation = 0;
+  int commande = 0;
+  int erreurActuelle = rotationSpeed - vitesseSouhaitee;
+  sommeIntegral = sommeIntegral + erreurActuelle;
+  variation = erreurActuelle - erreurAncienne;
+  commande = sommeIntegral*integral + erreurActuelle * proportionnel + derive*variation;
+  if(commande < 0) commande=0;
+    else if(commande > 255) commande = 255;
+    analogWrite(enableBridgePin, 255-commande);
+  erreurAncienne = erreurActuelle;
+}
+
+  
+
+ISR(TIMER2_OVF_vect){ 
+
+  currentNbTicks = 0; 
+  Asservissement();
+
+} 
+
+  
+
+void tickCount() { 
+
+  ++currentNbTicks ; 
+
+} 
